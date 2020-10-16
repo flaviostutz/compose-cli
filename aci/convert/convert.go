@@ -44,7 +44,7 @@ const (
 	// ComposeDNSSidecarName name of the dns sidecar container
 	ComposeDNSSidecarName = "aci--dns--sidecar"
 
-	dnsSidecarImage                = "busybox:1.31.1"
+	dnsSidecarImage                = "docker/aci-hostnames-sidecar"
 	azureFileDriverName            = "azure_file"
 	volumeDriveroptsShareNameKey   = "share_name"
 	volumeDriveroptsAccountNameKey = "storage_account_name"
@@ -162,19 +162,15 @@ func convertPortsToAci(service serviceConfigAciHelper) ([]containerinstance.Cont
 }
 
 func getDNSSidecar(containers []containerinstance.Container) containerinstance.Container {
-	var commands []string
+	var names []string
 	for _, container := range containers {
-		commands = append(commands, fmt.Sprintf("echo 127.0.0.1 %s >> /etc/hosts", *container.Name))
+		names = append(names, *container.Name)
 	}
-	// ACI restart policy is currently at container group level, cannot let the sidecar terminate quietly once /etc/hosts has been edited
-	// Pricing is done at the container group level so letting the sidecar container "sleep" should not impact the price for the whole group
-	commands = append(commands, "sleep infinity")
-	alpineCmd := []string{"sh", "-c", strings.Join(commands, ";")}
 	dnsSideCar := containerinstance.Container{
 		Name: to.StringPtr(ComposeDNSSidecarName),
 		ContainerProperties: &containerinstance.ContainerProperties{
 			Image:   to.StringPtr(dnsSidecarImage),
-			Command: &alpineCmd,
+			Command: &names,
 			Resources: &containerinstance.ResourceRequirements{
 				Requests: &containerinstance.ResourceRequests{
 					MemoryInGB: to.Float64Ptr(0.1),
